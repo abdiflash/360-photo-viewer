@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viewer Foto 360° Modern</title>
+  
+  <!-- CDN Pannellum CSS & JS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pannellum/2.5.6/pannellum.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pannellum/2.5.6/pannellum.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0f172a;
+      color: #ffffff;
+    }
+    #panorama {
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    /* Overlay UI Modern (Glassmorphism) */
+    .ui-container {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 999px;
+      padding: 8px 16px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+
+    /* Badge Info Nama File di Atas */
+    .file-info-badge {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 20px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      display: none;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      max-width: 80vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Select Dropdown untuk daftar foto */
+    .photo-select {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+      max-width: 180px;
+      text-overflow: ellipsis;
+    }
+    .photo-select option {
+      background: #0f172a;
+      color: #fff;
+    }
+
+    input[type="file"] { display: none; }
+
+    /* Dropzone Layar Penuh (Awal) */
+    #drop-zone {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: #0f172a;
+      z-index: 200;
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      text-align: center;
+      padding: 20px;
+    }
+    #drop-zone.hidden { display: none; }
+    #drop-zone h2 { font-size: 1.6rem; margin-bottom: 8px; font-weight: 600; }
+    #drop-zone p { color: #94a3b8; font-size: 0.95rem; margin-bottom: 24px; }
+    .drop-btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Screen Awal untuk Memilih / Drag File / Folder -->
+  <div id="drop-zone">
+    <h2>Tarik & Lepas Foto / Folder 360° Ke Sini</h2>
+    <p>Mendukung format JPEG / PNG (Equirectangular) dari kamera 360°</p>
+    <div class="drop-btn-group">
+      <button class="btn" style="padding: 12px 20px; font-size: 14px;" onclick="document.getElementById('folder-input').click()">
+        📁 Buka Folder Foto
+      </button>
+      <button class="btn" style="padding: 12px 20px; font-size: 14px;" onclick="document.getElementById('file-input').click()">
+        🖼️ Pilih File Foto
+      </button>
+    </div>
+  </div>
+
+  <!-- Info Judul Foto di Bagian Atas -->
+  <div id="file-info" class="file-info-badge"></div>
+
+  <!-- Container Elemen 360° Viewer -->
+  <div id="panorama"></div>
+
+  <!-- Floating Navigation Bar -->
+  <div class="ui-container">
+    <!-- Input Tersembunyi -->
+    <input type="file" id="folder-input" webkitdirectory directory multiple>
+    <input type="file" id="file-input" accept="image/jpeg, image/jpg, image/png" multiple>
+
+    <button class="btn" onclick="document.getElementById('folder-input').click()" title="Buka seluruh folder foto">📁 Folder</button>
+    <button class="btn" onclick="document.getElementById('file-input').click()" title="Pilih foto individual">🖼️ File</button>
+
+    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
+
+    <!-- Navigasi Foto -->
+    <button class="btn" id="btn-prev" onclick="changePhoto(-1)" disabled title="Foto Sebelumnya">◀</button>
+    <select id="photo-select" class="photo-select" onchange="selectPhoto(this.value)" disabled>
+      <option>Belum ada foto</option>
+    </select>
+    <button class="btn" id="btn-next" onclick="changePhoto(1)" disabled title="Foto Berikutnya">▶</button>
+
+    <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
+
+    <!-- Kontrol Viewer -->
+    <button class="btn" id="btn-autorotate">🔄 Putar Otomatis</button>
+    <button class="btn" id="btn-fullscreen">⛶ Fullscreen</button>
+  </div>
+
+  <script>
+    let viewer = null;
+    let autoRotateState = false;
+    let photoList = []; // Menyimpan daftar foto yang dimuat
+    let currentIndex = 0;
+
+    // Kecepatan putar otomatis (nilai dipercepat dari -3 menjadi -7 derajat/detik)
+    const AUTO_ROTATE_SPEED = -7; 
+
+    const folderInput = document.getElementById('folder-input');
+    const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
+    const photoSelect = document.getElementById('photo-select');
+    const btnPrev = document.getElementById('btn-prev');
+    const btnNext = document.getElementById('btn-next');
+    const fileInfo = document.getElementById('file-info');
+
+    // Fungsi Render Viewer 360
+    function render360(imageSrc, pitch = 0, yaw = 0) {
+      if (viewer) {
+        viewer.destroy();
+      }
+      dropZone.classList.add('hidden');
+
+      viewer = pannellum.viewer('panorama', {
+        "type": "equirectangular",
+        "panorama": imageSrc,
+        "autoLoad": true,
+        "autoRotate": autoRotateState ? AUTO_ROTATE_SPEED : 0,
+        "compass": false,
+        "showZoomCtrl": false,
+        "showFullscreenCtrl": false,
+        "mouseZoom": true,
+        "touchPanSpeedCoeffFactor": 1
+      });
+    }
+
+    // Memproses daftar file foto yang di-upload / di-drop
+    function processFiles(files) {
+      const validExtensions = ['jpg', 'jpeg', 'png', 'webp'];
+      
+      // Filter hanya file gambar & urutkan secara alfabetis
+      const filteredFiles = Array.from(files)
+        .filter(file => {
+          const ext = file.name.split('.').pop().toLowerCase();
+          return validExtensions.includes(ext);
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+      if (filteredFiles.length === 0) {
+        alert('Tidak ditemukan file foto JPEG/PNG 360° yang valid!');
+        return;
+      }
+
+      // Buat URL lokal untuk setiap file
+      photoList = filteredFiles.map(file => ({
+        name: file.name,
+        url: URL.createObjectURL(file)
+      }));
+
+      currentIndex = 0;
+      updateUI();
+      loadCurrentPhoto();
+    }
+
+    // Memuat foto berdasarkan indeks aktif
+    function loadCurrentPhoto() {
+      if (photoList.length > 0) {
+        const photo = photoList[currentIndex];
+        render360(photo.url);
+
+        // Update Info Judul di Atas
+        fileInfo.style.display = 'block';
+        fileInfo.innerText = `[${currentIndex + 1}/${photoList.length}] ${photo.name}`;
+      }
+    }
+
+    // Mengupdate elemen antarmuka (Tombol Prev/Next & Select Dropdown)
+    function updateUI() {
+      const hasMultiple = photoList.length > 1;
+
+      btnPrev.disabled = !hasMultiple || currentIndex === 0;
+      btnNext.disabled = !hasMultiple || currentIndex === photoList.length - 1;
+      photoSelect.disabled = !hasMultiple;
+
+      // Update isi opsi Dropdown
+      photoSelect.innerHTML = '';
+      photoList.forEach((photo, index) => {
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.textContent = `${index + 1}. ${photo.name}`;
+        if (index === currentIndex) opt.selected = true;
+        photoSelect.appendChild(opt);
+      });
+    }
+
+    // Pindah Foto melalui Tombol Prev/Next
+    function changePhoto(step) {
+      const newIndex = currentIndex + step;
+      if (newIndex >= 0 && newIndex < photoList.length) {
+        currentIndex = newIndex;
+        updateUI();
+        loadCurrentPhoto();
+      }
+    }
+
+    // Pindah Foto dari Dropdown Select
+    function selectPhoto(index) {
+      currentIndex = parseInt(index, 10);
+      updateUI();
+      loadCurrentPhoto();
+    }
+
+    // Event Listener untuk Input File / Folder
+    folderInput.addEventListener('change', (e) => processFiles(e.target.files));
+    fileInput.addEventListener('change', (e) => processFiles(e.target.files));
+
+    // Event Drag & Drop
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files.length > 0) {
+        processFiles(e.dataTransfer.files);
+      }
+    });
+
+    // Event Tombol Putar Otomatis
+    document.getElementById('btn-autorotate').addEventListener('click', () => {
+      if (viewer) {
+        autoRotateState = !autoRotateState;
+        if (autoRotateState) {
+          viewer.startAutoRotate(AUTO_ROTATE_SPEED);
+        } else {
+          viewer.stopAutoRotate();
+        }
+      }
+    });
+
+    // Event Fullscreen
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (viewer) {
+        viewer.toggleFullscreen();
+      }
+    });
+  </script>
+</body>
+</html>
